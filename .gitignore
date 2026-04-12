@@ -1,0 +1,44 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+server
+
+# Test / coverage artifacts
+*.test
+*.out
+coverage.out
+coverage
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+deploy/ec2.env
+*.pem
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfvars
+*.tfplan
+terraform/tfplan
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local artifacts
+*.log
+*.tgz
+deploy.tar
+
+# Vendor (optional)
+# vendor/

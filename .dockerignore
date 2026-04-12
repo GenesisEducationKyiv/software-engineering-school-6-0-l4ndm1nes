@@ -1,0 +1,17 @@
+.git
+.github
+.env
+deploy/ec2.env
+*.md
+.dockerignore
+.golangci.yml
+terraform
+terraform/.terraform
+**/.terraform
+*.tfstate
+*.tfstate.*
+coverage
+coverage.out
+*.log
+deploy.tar
+*.tgz

@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package subscription;
+
+option go_package = "github.com/user/github-release-notification-api/internal/adapter/inbound/grpc/pb";
+
+service SubscriptionService {
+  rpc Subscribe(SubscribeRequest) returns (SubscribeResponse);
+  rpc Confirm(ConfirmRequest) returns (ConfirmResponse);
+  rpc Unsubscribe(UnsubscribeRequest) returns (UnsubscribeResponse);
+  rpc GetSubscriptions(GetSubscriptionsRequest) returns (GetSubscriptionsResponse);
+}
+
+message SubscribeRequest {
+  string email = 1;
+  string repo = 2;
+}
+
+message SubscribeResponse {
+  string message = 1;
+}
+
+message ConfirmRequest {
+  string token = 1;
+}
+
+message ConfirmResponse {
+  string message = 1;
+}
+
+message UnsubscribeRequest {
+  string token = 1;
+}
+
+message UnsubscribeResponse {
+  string message = 1;
+}
+
+message GetSubscriptionsRequest {
+  string email = 1;
+}
+
+message GetSubscriptionsResponse {
+  repeated SubscriptionInfo subscriptions = 1;
+}
+
+message SubscriptionInfo {
+  string email = 1;
+  string repo = 2;
+  bool confirmed = 3;
+  string last_seen_tag = 4;
+}
