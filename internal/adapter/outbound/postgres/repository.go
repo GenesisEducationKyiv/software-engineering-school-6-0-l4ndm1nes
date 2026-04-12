@@ -115,7 +115,7 @@ func (r *SubscriptionRepo) GetRepositoriesWithConfirmedSubs(ctx context.Context)
 		}
 		repos = append(repos, rep)
 	}
-	if err = rows.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return repos, nil
@@ -190,7 +190,7 @@ func (r *SubscriptionRepo) GetSubscriptionsByEmail(ctx context.Context, email st
 		sub.Repository = &rep
 		subs = append(subs, sub)
 	}
-	if err = rows.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return subs, nil
@@ -284,7 +284,7 @@ func (r *SubscriptionRepo) GetConfirmedSubscriptionsByRepoID(ctx context.Context
 		}
 		subs = append(subs, sub)
 	}
-	if err = rows.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return subs, nil
