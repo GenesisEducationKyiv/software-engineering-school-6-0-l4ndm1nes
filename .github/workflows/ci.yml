@@ -95,8 +95,14 @@ jobs:
           DEPLOY_PATH="${EC2_DEPLOY_PATH:-/opt/app/releases-api}"
           COMPOSE_FILE="${EC2_COMPOSE_FILE:-docker-compose.prod.yml}"
           mkdir -p ~/.ssh
-          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          umask 077
+          # Strip CR so PEM parses (Windows-saved secrets → libcrypto load error)
+          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key >/dev/null 2>&1; then
+            echo "::error::EC2_SSH_PRIVATE_KEY is invalid or not an OpenSSH PEM. Paste the full key (BEGIN/END), use LF newlines, no extra quotes."
+            exit 1
+          fi
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
             /tmp/app.tgz "${EC2_USER}@${EC2_HOST}:/tmp/app-deploy.tgz"
