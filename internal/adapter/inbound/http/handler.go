@@ -39,7 +39,7 @@ type subscriptionResponse struct {
 func (h *Handler) Subscribe(c *gin.Context) {
 	var req subscribeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		c.JSON(http.StatusBadRequest, gin.H{jsonKeyError: "invalid request body"})
 		return
 	}
 
@@ -48,7 +48,7 @@ func (h *Handler) Subscribe(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Subscription successful. Confirmation email sent."})
+	c.JSON(http.StatusOK, gin.H{jsonKeyMessage: "Subscription successful. Confirmation email sent."})
 }
 
 func (h *Handler) Confirm(c *gin.Context) {
@@ -59,7 +59,7 @@ func (h *Handler) Confirm(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Subscription confirmed successfully"})
+	c.JSON(http.StatusOK, gin.H{jsonKeyMessage: "Subscription confirmed successfully"})
 }
 
 func (h *Handler) Unsubscribe(c *gin.Context) {
@@ -70,13 +70,13 @@ func (h *Handler) Unsubscribe(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Unsubscribed successfully"})
+	c.JSON(http.StatusOK, gin.H{jsonKeyMessage: "Unsubscribed successfully"})
 }
 
 func (h *Handler) GetSubscriptions(c *gin.Context) {
 	email := c.Query("email")
 	if email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "email query parameter is required"})
+		c.JSON(http.StatusBadRequest, gin.H{jsonKeyError: "email query parameter is required"})
 		return
 	}
 
@@ -108,13 +108,13 @@ func writeDomainError(c *gin.Context, err error) {
 	case errors.Is(err, domain.ErrInvalidEmail),
 		errors.Is(err, domain.ErrInvalidRepoFormat),
 		errors.Is(err, domain.ErrInvalidToken):
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{jsonKeyError: err.Error()})
 	case errors.Is(err, domain.ErrRepoNotFound),
 		errors.Is(err, domain.ErrTokenNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{jsonKeyError: err.Error()})
 	case errors.Is(err, domain.ErrAlreadySubscribed):
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		c.JSON(http.StatusConflict, gin.H{jsonKeyError: err.Error()})
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusInternalServerError, gin.H{jsonKeyError: "internal server error"})
 	}
 }

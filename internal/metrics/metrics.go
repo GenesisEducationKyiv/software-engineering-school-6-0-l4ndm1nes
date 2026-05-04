@@ -2,6 +2,8 @@ package metrics
 
 import "github.com/prometheus/client_golang/prometheus"
 
+const prometheusLabelStatus = "status"
+
 type Metrics struct {
 	HTTPRequestsTotal   *prometheus.CounterVec
 	HTTPRequestDuration *prometheus.HistogramVec
@@ -18,7 +20,7 @@ func New(reg prometheus.Registerer) *Metrics {
 				Name: "http_requests_total",
 				Help: "Total number of HTTP requests",
 			},
-			[]string{"method", "path", "status"},
+			[]string{"method", "path", prometheusLabelStatus},
 		),
 		HTTPRequestDuration: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
@@ -26,21 +28,21 @@ func New(reg prometheus.Registerer) *Metrics {
 				Help:    "HTTP request duration in seconds",
 				Buckets: prometheus.DefBuckets,
 			},
-			[]string{"method", "path", "status"},
+			[]string{"method", "path", prometheusLabelStatus},
 		),
 		GitHubAPICalls: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "github_api_calls_total",
 				Help: "Total number of GitHub API calls",
 			},
-			[]string{"endpoint", "status"},
+			[]string{"endpoint", prometheusLabelStatus},
 		),
 		EmailsSent: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "emails_sent_total",
 				Help: "Total number of emails sent",
 			},
-			[]string{"type", "status"},
+			[]string{"type", prometheusLabelStatus},
 		),
 		ActiveSubscriptions: prometheus.NewGauge(
 			prometheus.GaugeOpts{

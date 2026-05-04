@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -41,7 +42,6 @@ func main() {
 		logger.Error("failed to connect to database", "error", err)
 		os.Exit(1)
 	}
-	defer func() { _ = db.Close() }()
 
 	db.SetMaxOpenConns(cfg.DB.MaxOpenConns)
 	db.SetMaxIdleConns(cfg.DB.MaxIdleConns)
@@ -50,14 +50,15 @@ func main() {
 	if err := db.Ping(); err != nil {
 		logger.Error("failed to ping database", "error", err)
 		_ = db.Close()
-		os.Exit(1) //nolint:gocritic // exitAfterDefer: DB closed above; defer will not run on Exit
+		os.Exit(1)
 	}
+	defer func() { _ = db.Close() }()
 	logger.Info("connected to database")
 
 	if err := runMigrations(db); err != nil {
 		logger.Error("failed to run migrations", "error", err)
 		_ = db.Close()
-		os.Exit(1) //nolint:gocritic // exitAfterDefer: DB closed above; defer will not run on Exit
+		os.Exit(1) //nolint:gocritic // DB closed above; Exit skips defer
 	}
 	logger.Info("migrations applied successfully")
 
@@ -179,7 +180,7 @@ func runMigrations(db *sql.DB) error {
 		return fmt.Errorf("creating migration instance: %w", err)
 	}
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("running migrations: %w", err)
 	}
 

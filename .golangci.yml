@@ -17,6 +17,15 @@ linters:
     - revive
     - misspell
     - prealloc
+    # Additional static analysis / security
+    - copyloopvar
+    - durationcheck
+    - errorlint
+    - gosec
+    - nolintlint
+    - testifylint
+    - unconvert
+    - wastedassign
   settings:
     goconst:
       min-len: 3
@@ -26,6 +35,12 @@ linters:
         - diagnostic
         - style
         - performance
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    gosec:
+      confidence: medium
     revive:
       rules:
         - name: exported
@@ -33,11 +48,14 @@ linters:
   exclusions:
     paths:
       - vendor
+      # Generated protobuf / gRPC code
+      - internal/adapter/inbound/grpc/pb
     rules:
       - path: _test\.go
         linters:
           - goconst
           - gocritic
+          - gosec
 
 formatters:
   enable:

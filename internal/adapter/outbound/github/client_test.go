@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -145,6 +146,5 @@ func TestClient_GetLatestRelease_NotFound(t *testing.T) {
 }
 
 func isContextError(err error) bool {
-	return err == context.Canceled || err == context.DeadlineExceeded ||
-		context.Cause(context.Background()) != nil
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
