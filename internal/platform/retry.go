@@ -74,7 +74,6 @@ func calcBackoff(initial, maxWait time.Duration, multiplier float64, attempt int
 	if wait > maxWait {
 		wait = maxWait
 	}
-	// Jitter: ±25%
-	jitter := time.Duration(float64(wait) * (0.75 + rand.Float64()*0.5))
+	jitter := time.Duration(float64(wait) * (0.75 + rand.Float64()*0.5)) //nolint:gosec // G404: jitter only, not crypto
 	return jitter
 }
