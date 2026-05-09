@@ -1,0 +1,65 @@
+# Config schema v2; requires golangci-lint 2.x.
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - goconst
+    - gocritic
+    - revive
+    - misspell
+    - prealloc
+    # Additional static analysis / security
+    - copyloopvar
+    - durationcheck
+    - errorlint
+    - gosec
+    - nolintlint
+    - testifylint
+    - unconvert
+    - wastedassign
+  settings:
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    gosec:
+      confidence: medium
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+  exclusions:
+    paths:
+      - vendor
+      # Generated protobuf / gRPC code
+      - internal/adapter/inbound/grpc/pb
+    rules:
+      - path: _test\.go
+        linters:
+          - goconst
+          - gocritic
+          - gosec
+
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    paths:
+      - vendor

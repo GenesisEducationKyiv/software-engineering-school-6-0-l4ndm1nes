@@ -1,0 +1,18 @@
+# Production: app container only (RDS + ElastiCache + SES via .env on the host).
+# HTTP is bound to loopback for Nginx; gRPC is exposed on the instance network interface.
+
+services:
+  app:
+    build: .
+    env_file: .env
+    environment:
+      GIN_MODE: release
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "0.0.0.0:50051:50051"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
