@@ -149,7 +149,12 @@ func setupTestRouter() (*gin.Engine, *mockRepo) {
 	gh := &mockGitHub{existing: map[string]bool{"golang/go": true}}
 	mailer := &mockMailer{}
 
-	svc := application.NewSubscriptionService(repo, gh, mailer, testLogger(), "http://localhost:8080")
+	svc := application.NewSubscriptionService(
+		repo, gh, mailer,
+		application.NewCryptoTokenGenerator(0),
+		application.NewURLBuilder("http://localhost:8080"),
+		testLogger(),
+	)
 	handler := NewHandler(svc)
 
 	router := gin.New()
