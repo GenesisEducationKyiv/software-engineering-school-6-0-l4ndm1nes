@@ -10,8 +10,19 @@ import (
 	"github.com/user/github-release-notification-api/internal/domain"
 )
 
+const testBaseURL = "http://localhost:8080"
+
 func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+}
+
+func newTestSubscriptionService(repo *mockRepo, gh *mockGitHub, mailer *mockMailer) *SubscriptionService {
+	return NewSubscriptionService(
+		repo, gh, mailer,
+		NewCryptoTokenGenerator(0),
+		NewURLBuilder(testBaseURL),
+		testLogger(),
+	)
 }
 
 func TestSubscribe_Success(t *testing.T) {
@@ -20,7 +31,7 @@ func TestSubscribe_Success(t *testing.T) {
 	gh.existingRepos["golang/go"] = true
 	mailer := newMockMailer()
 
-	svc := NewSubscriptionService(repo, gh, mailer, testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(repo, gh, mailer)
 
 	err := svc.Subscribe(context.Background(), "test@example.com", "golang/go")
 	if err != nil {
@@ -36,7 +47,7 @@ func TestSubscribe_Success(t *testing.T) {
 }
 
 func TestSubscribe_InvalidEmail(t *testing.T) {
-	svc := NewSubscriptionService(newMockRepo(), newMockGitHub(), newMockMailer(), testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(newMockRepo(), newMockGitHub(), newMockMailer())
 
 	err := svc.Subscribe(context.Background(), "not-an-email", "golang/go")
 	if !errors.Is(err, domain.ErrInvalidEmail) {
@@ -45,7 +56,7 @@ func TestSubscribe_InvalidEmail(t *testing.T) {
 }
 
 func TestSubscribe_InvalidRepoFormat(t *testing.T) {
-	svc := NewSubscriptionService(newMockRepo(), newMockGitHub(), newMockMailer(), testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(newMockRepo(), newMockGitHub(), newMockMailer())
 
 	tests := []string{"", "noslash", "too/many/slashes", "/empty", "empty/"}
 	for _, repo := range tests {
@@ -58,7 +69,7 @@ func TestSubscribe_InvalidRepoFormat(t *testing.T) {
 
 func TestSubscribe_RepoNotFound(t *testing.T) {
 	gh := newMockGitHub()
-	svc := NewSubscriptionService(newMockRepo(), gh, newMockMailer(), testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(newMockRepo(), gh, newMockMailer())
 
 	err := svc.Subscribe(context.Background(), "test@example.com", "nonexistent/repo")
 	if !errors.Is(err, domain.ErrRepoNotFound) {
@@ -72,7 +83,7 @@ func TestSubscribe_AlreadySubscribed(t *testing.T) {
 	gh.existingRepos["golang/go"] = true
 	mailer := newMockMailer()
 
-	svc := NewSubscriptionService(repo, gh, mailer, testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(repo, gh, mailer)
 
 	_ = svc.Subscribe(context.Background(), "test@example.com", "golang/go")
 	err := svc.Subscribe(context.Background(), "test@example.com", "golang/go")
@@ -87,11 +98,10 @@ func TestConfirm_Success(t *testing.T) {
 	gh.existingRepos["golang/go"] = true
 	mailer := newMockMailer()
 
-	svc := NewSubscriptionService(repo, gh, mailer, testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(repo, gh, mailer)
 
 	_ = svc.Subscribe(context.Background(), "test@example.com", "golang/go")
 
-	// Get the confirm token from the mock repo
 	var token string
 	for _, s := range repo.subs {
 		token = s.ConfirmToken
@@ -103,7 +113,6 @@ func TestConfirm_Success(t *testing.T) {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 
-	// Verify subscription is confirmed
 	for _, s := range repo.subs {
 		if !s.Confirmed {
 			t.Error("expected subscription to be confirmed")
@@ -112,7 +121,7 @@ func TestConfirm_Success(t *testing.T) {
 }
 
 func TestConfirm_TokenNotFound(t *testing.T) {
-	svc := NewSubscriptionService(newMockRepo(), newMockGitHub(), newMockMailer(), testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(newMockRepo(), newMockGitHub(), newMockMailer())
 
 	err := svc.Confirm(context.Background(), "nonexistent-token")
 	if !errors.Is(err, domain.ErrTokenNotFound) {
@@ -121,7 +130,7 @@ func TestConfirm_TokenNotFound(t *testing.T) {
 }
 
 func TestConfirm_EmptyToken(t *testing.T) {
-	svc := NewSubscriptionService(newMockRepo(), newMockGitHub(), newMockMailer(), testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(newMockRepo(), newMockGitHub(), newMockMailer())
 
 	err := svc.Confirm(context.Background(), "")
 	if !errors.Is(err, domain.ErrInvalidToken) {
@@ -134,7 +143,7 @@ func TestUnsubscribe_Success(t *testing.T) {
 	gh := newMockGitHub()
 	gh.existingRepos["golang/go"] = true
 
-	svc := NewSubscriptionService(repo, gh, newMockMailer(), testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(repo, gh, newMockMailer())
 
 	_ = svc.Subscribe(context.Background(), "test@example.com", "golang/go")
 
@@ -155,7 +164,7 @@ func TestUnsubscribe_Success(t *testing.T) {
 }
 
 func TestUnsubscribe_TokenNotFound(t *testing.T) {
-	svc := NewSubscriptionService(newMockRepo(), newMockGitHub(), newMockMailer(), testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(newMockRepo(), newMockGitHub(), newMockMailer())
 
 	err := svc.Unsubscribe(context.Background(), "nonexistent-token")
 	if !errors.Is(err, domain.ErrTokenNotFound) {
@@ -169,7 +178,7 @@ func TestGetSubscriptions_Success(t *testing.T) {
 	gh.existingRepos["golang/go"] = true
 	gh.existingRepos["gin-gonic/gin"] = true
 
-	svc := NewSubscriptionService(repo, gh, newMockMailer(), testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(repo, gh, newMockMailer())
 
 	_ = svc.Subscribe(context.Background(), "test@example.com", "golang/go")
 	_ = svc.Subscribe(context.Background(), "test@example.com", "gin-gonic/gin")
@@ -184,7 +193,7 @@ func TestGetSubscriptions_Success(t *testing.T) {
 }
 
 func TestGetSubscriptions_InvalidEmail(t *testing.T) {
-	svc := NewSubscriptionService(newMockRepo(), newMockGitHub(), newMockMailer(), testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(newMockRepo(), newMockGitHub(), newMockMailer())
 
 	_, err := svc.GetSubscriptions(context.Background(), "invalid")
 	if !errors.Is(err, domain.ErrInvalidEmail) {
@@ -196,7 +205,7 @@ func TestSubscribe_GitHubClientError(t *testing.T) {
 	gh := newMockGitHub()
 	gh.repoExistsErr = errors.New("github api down")
 
-	svc := NewSubscriptionService(newMockRepo(), gh, newMockMailer(), testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(newMockRepo(), gh, newMockMailer())
 
 	err := svc.Subscribe(context.Background(), "test@example.com", "golang/go")
 	if err == nil {
@@ -213,7 +222,7 @@ func TestSubscribe_CreateRepoError(t *testing.T) {
 	gh := newMockGitHub()
 	gh.existingRepos["golang/go"] = true
 
-	svc := NewSubscriptionService(repo, gh, newMockMailer(), testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(repo, gh, newMockMailer())
 
 	err := svc.Subscribe(context.Background(), "test@example.com", "golang/go")
 	if err == nil {
@@ -227,7 +236,7 @@ func TestSubscribe_CreateSubscriptionError(t *testing.T) {
 	gh := newMockGitHub()
 	gh.existingRepos["golang/go"] = true
 
-	svc := NewSubscriptionService(repo, gh, newMockMailer(), testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(repo, gh, newMockMailer())
 
 	err := svc.Subscribe(context.Background(), "test@example.com", "golang/go")
 	if err == nil {
@@ -242,7 +251,7 @@ func TestSubscribe_EmailFailure_RollsBackSubscription(t *testing.T) {
 	mailer := newMockMailer()
 	mailer.sendConfirmErr = errors.New("smtp timeout")
 
-	svc := NewSubscriptionService(repo, gh, mailer, testLogger(), "http://localhost:8080")
+	svc := newTestSubscriptionService(repo, gh, mailer)
 
 	err := svc.Subscribe(context.Background(), "test@example.com", "golang/go")
 	if err == nil {
@@ -253,3 +262,35 @@ func TestSubscribe_EmailFailure_RollsBackSubscription(t *testing.T) {
 		t.Error("subscription should be rolled back after email failure")
 	}
 }
+
+func TestSubscribe_TokenGeneratorError_DoesNotPersistSubscription(t *testing.T) {
+	repo := newMockRepo()
+	gh := newMockGitHub()
+	gh.existingRepos["golang/go"] = true
+	mailer := newMockMailer()
+
+	failingTokens := stubTokens{err: errors.New("rng broken")}
+	svc := NewSubscriptionService(
+		repo, gh, mailer,
+		failingTokens,
+		NewURLBuilder(testBaseURL),
+		testLogger(),
+	)
+
+	err := svc.Subscribe(context.Background(), "test@example.com", "golang/go")
+	if err == nil {
+		t.Fatal("expected error from token generator, got nil")
+	}
+	if len(repo.subs) != 0 {
+		t.Errorf("expected no subscription to be persisted, got %d", len(repo.subs))
+	}
+	if len(mailer.confirmationsSent) != 0 {
+		t.Errorf("expected no confirmation email to be sent, got %d", len(mailer.confirmationsSent))
+	}
+}
+
+type stubTokens struct {
+	err error
+}
+
+func (s stubTokens) Generate() (string, error) { return "", s.err }

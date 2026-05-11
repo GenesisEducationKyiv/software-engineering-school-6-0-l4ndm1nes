@@ -21,8 +21,13 @@ type Notifier interface {
 	NotifySubscribers(ctx context.Context, repository *domain.Repository, release *domain.Release) error
 }
 
+type scannerDeps interface {
+	port.RepositoryReader
+	port.RepositoryWriter
+}
+
 type ScannerService struct {
-	repo       port.SubscriptionRepository
+	repo       scannerDeps
 	github     port.GitHubClient
 	notifier   Notifier
 	logger     *slog.Logger
@@ -31,7 +36,7 @@ type ScannerService struct {
 }
 
 func NewScannerService(
-	repo port.SubscriptionRepository,
+	repo scannerDeps,
 	github port.GitHubClient,
 	notifier Notifier,
 	logger *slog.Logger,

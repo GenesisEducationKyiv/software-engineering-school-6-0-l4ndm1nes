@@ -36,38 +36,18 @@ func NewSender(host, port, user, password, from string, timeout time.Duration, l
 }
 
 func (s *Sender) SendConfirmation(ctx context.Context, email, repo, confirmURL string) error {
-	subject := fmt.Sprintf("Confirm your subscription to %s releases", repo)
-	body := fmt.Sprintf(
-		`<html><body>
-<h2>Confirm Your Subscription</h2>
-<p>You have requested to receive release notifications for <strong>%s</strong>.</p>
-<p>Please confirm your subscription by clicking the link below:</p>
-<p><a href="%s">Confirm Subscription</a></p>
-<p>If you did not request this, you can safely ignore this email.</p>
-</body></html>`, repo, confirmURL)
-
-	return s.sendEmail(ctx, email, subject, body)
+	return s.send(ctx, email, RenderConfirmation(repo, confirmURL))
 }
 
 func (s *Sender) SendReleaseNotification(ctx context.Context, email, repo, tag, releaseURL, unsubscribeURL string) error {
-	subject := fmt.Sprintf("New release %s for %s", tag, repo)
-	body := fmt.Sprintf(
-		`<html><body>
-<h2>New Release: %s</h2>
-<p>Repository <strong>%s</strong> has a new release: <strong>%s</strong></p>
-<p><a href="%s">View Release on GitHub</a></p>
-<hr>
-<p><small><a href="%s">Unsubscribe</a> from release notifications for this repository.</small></p>
-</body></html>`, tag, repo, tag, releaseURL, unsubscribeURL)
-
-	return s.sendEmail(ctx, email, subject, body)
+	return s.send(ctx, email, RenderReleaseNotification(repo, tag, releaseURL, unsubscribeURL))
 }
 
-func (s *Sender) sendEmail(ctx context.Context, to, subject, htmlBody string) error {
+func (s *Sender) send(ctx context.Context, to string, msg Message) error {
 	rawMsg := fmt.Sprintf(
 		"From: %s\r\nTo: %s\r\nSubject: %s\r\n"+
 			"MIME-Version: 1.0\r\nContent-Type: text/html; charset=\"UTF-8\"\r\n\r\n%s",
-		s.from, to, subject, htmlBody,
+		s.from, to, msg.Subject, msg.HTMLBody,
 	)
 
 	addr := fmt.Sprintf("%s:%s", s.host, s.port)
@@ -132,6 +112,6 @@ func (s *Sender) sendEmail(ctx context.Context, to, subject, htmlBody string) er
 		s.logger.Debug("smtp QUIT failed", "error", err)
 	}
 
-	s.logger.Info("email sent", "to", to, "subject", subject)
+	s.logger.Info("email sent", "to", to, "subject", msg.Subject)
 	return nil
 }

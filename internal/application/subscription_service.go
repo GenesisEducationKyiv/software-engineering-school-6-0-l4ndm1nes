@@ -2,8 +2,6 @@ package application
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/mail"
@@ -13,27 +11,36 @@ import (
 	"github.com/user/github-release-notification-api/internal/domain/port"
 )
 
+type subscriptionDeps interface {
+	port.RepositoryWriter
+	port.SubscriptionReader
+	port.SubscriptionWriter
+}
+
 type SubscriptionService struct {
-	repo    port.SubscriptionRepository
-	github  port.GitHubClient
-	mailer  port.Mailer
-	logger  *slog.Logger
-	baseURL string
+	repo   subscriptionDeps
+	github port.GitHubClient
+	mailer port.Mailer
+	tokens TokenGenerator
+	urls   URLBuilder
+	logger *slog.Logger
 }
 
 func NewSubscriptionService(
-	repo port.SubscriptionRepository,
+	repo subscriptionDeps,
 	github port.GitHubClient,
 	mailer port.Mailer,
+	tokens TokenGenerator,
+	urls URLBuilder,
 	logger *slog.Logger,
-	baseURL string,
 ) *SubscriptionService {
 	return &SubscriptionService{
-		repo:    repo,
-		github:  github,
-		mailer:  mailer,
-		logger:  logger,
-		baseURL: baseURL,
+		repo:   repo,
+		github: github,
+		mailer: mailer,
+		tokens: tokens,
+		urls:   urls,
+		logger: logger,
 	}
 }
 
@@ -68,11 +75,11 @@ func (s *SubscriptionService) Subscribe(ctx context.Context, email, repoFullName
 		return domain.ErrAlreadySubscribed
 	}
 
-	confirmToken, err := generateToken()
+	confirmToken, err := s.tokens.Generate()
 	if err != nil {
 		return fmt.Errorf("generating confirm token: %w", err)
 	}
-	unsubToken, err := generateToken()
+	unsubToken, err := s.tokens.Generate()
 	if err != nil {
 		return fmt.Errorf("generating unsubscribe token: %w", err)
 	}
@@ -89,8 +96,7 @@ func (s *SubscriptionService) Subscribe(ctx context.Context, email, repoFullName
 		return fmt.Errorf("creating subscription: %w", err)
 	}
 
-	confirmURL := fmt.Sprintf("%s/api/confirm/%s", s.baseURL, confirmToken)
-	if err := s.mailer.SendConfirmation(ctx, email, repoFullName, confirmURL); err != nil {
+	if err := s.mailer.SendConfirmation(ctx, email, repoFullName, s.urls.Confirm(confirmToken)); err != nil {
 		s.logger.Error("failed to send confirmation email", "email", email, "error", err)
 		if delErr := s.repo.DeleteSubscription(ctx, sub.ID); delErr != nil {
 			s.logger.Error("failed to rollback subscription", "id", sub.ID, "error", delErr)
@@ -172,12 +178,4 @@ func validateEmail(email string) error {
 		return domain.ErrInvalidEmail
 	}
 	return nil
-}
-
-func generateToken() (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
 }

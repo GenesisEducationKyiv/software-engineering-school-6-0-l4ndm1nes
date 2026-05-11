@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/user/github-release-notification-api/internal/domain"
@@ -12,30 +11,40 @@ import (
 	"github.com/user/github-release-notification-api/internal/platform"
 )
 
+type notifierDeps interface {
+	port.SubscriptionReader
+}
+
 type NotifierService struct {
-	repo       port.SubscriptionRepository
-	mailer     port.Mailer
-	logger     *slog.Logger
-	baseURL    string
-	mailRetry  platform.RetryConfig
-	emailsSent *prometheus.CounterVec
+	repo        notifierDeps
+	mailer      port.Mailer
+	urls        URLBuilder
+	mailRetry   platform.RetryConfig
+	isRetryable platform.IsRetryable
+	logger      *slog.Logger
+	emailsSent  *prometheus.CounterVec
 }
 
 func NewNotifierService(
-	repo port.SubscriptionRepository,
+	repo notifierDeps,
 	mailer port.Mailer,
-	logger *slog.Logger,
-	baseURL string,
+	urls URLBuilder,
 	mailRetry platform.RetryConfig,
+	isRetryable platform.IsRetryable,
+	logger *slog.Logger,
 	emailsSent *prometheus.CounterVec,
 ) *NotifierService {
+	if isRetryable == nil {
+		isRetryable = platform.IsTransientMailError
+	}
 	return &NotifierService{
-		repo:       repo,
-		mailer:     mailer,
-		logger:     logger,
-		baseURL:    baseURL,
-		mailRetry:  mailRetry,
-		emailsSent: emailsSent,
+		repo:        repo,
+		mailer:      mailer,
+		urls:        urls,
+		mailRetry:   mailRetry,
+		isRetryable: isRetryable,
+		logger:      logger,
+		emailsSent:  emailsSent,
 	}
 }
 
@@ -50,9 +59,9 @@ func (n *NotifierService) NotifySubscribers(ctx context.Context, repository *dom
 
 	for i := range subs {
 		sub := &subs[i]
-		unsubURL := fmt.Sprintf("%s/api/unsubscribe/%s", n.baseURL, sub.UnsubscribeToken)
+		unsubURL := n.urls.Unsubscribe(sub.UnsubscribeToken)
 
-		err := platform.DoVoid(ctx, n.mailRetry, isTransientMailError, func(ctx context.Context) error {
+		err := platform.DoVoid(ctx, n.mailRetry, n.isRetryable, func(ctx context.Context) error {
 			return n.mailer.SendReleaseNotification(
 				ctx, sub.Email, repoFullName, release.TagName, release.HTMLURL, unsubURL,
 			)
@@ -83,17 +92,4 @@ func (n *NotifierService) NotifySubscribers(ctx context.Context, repository *dom
 	}
 
 	return nil
-}
-
-func isTransientMailError(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := err.Error()
-	for _, s := range []string{"dial", "timeout", "connection", "EOF", "reset", "broken pipe", "temporary"} {
-		if strings.Contains(msg, s) {
-			return true
-		}
-	}
-	return false
 }

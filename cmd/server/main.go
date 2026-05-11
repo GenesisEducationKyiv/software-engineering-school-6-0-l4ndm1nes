@@ -95,12 +95,16 @@ func main() {
 		cfg.SMTP.From, cfg.SMTP.Timeout, logger,
 	)
 
+	urls := application.NewURLBuilder(cfg.BaseURL)
+	tokens := application.NewCryptoTokenGenerator(0)
+
 	subService := application.NewSubscriptionService(
-		subscriptionRepo, githubClient, mailer, logger, cfg.BaseURL,
+		subscriptionRepo, githubClient, mailer, tokens, urls, logger,
 	)
 	notifierService := application.NewNotifierService(
-		subscriptionRepo, mailer, logger, cfg.BaseURL,
-		platform.DefaultMailRetryConfig(), appMetrics.EmailsSent,
+		subscriptionRepo, mailer, urls,
+		platform.DefaultMailRetryConfig(), platform.IsTransientMailError,
+		logger, appMetrics.EmailsSent,
 	)
 	scannerService := application.NewScannerService(
 		subscriptionRepo, githubClient, notifierService, logger,
